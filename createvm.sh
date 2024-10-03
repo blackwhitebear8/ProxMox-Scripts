@@ -182,14 +182,14 @@ case $keuze in
     6|7)  # OS-LOOS
         ;;
     2|3|4)  # Debian en Ubuntu
-        virt-customize --install qemu-guest-agent,htop,curl,avahi-daemon,console-setup,cron,cifs-utils -a "$IMAGE_NAME"
-        virt-customize --run-command "systemctl enable qemu-guest-agent" -a "$IMAGE_NAME"
-        virt-customize -a "$IMAGE_NAME" --truncate /etc/machine-id --truncate /var/lib/dbus/machine-id
+        virt-customize --install qemu-guest-agent,htop,curl,avahi-daemon,console-setup,cron,cifs-utils -a /tmp/"$IMAGE_NAME"
+        virt-customize --run-command "systemctl enable qemu-guest-agent" -a /tmp/"$IMAGE_NAME"
+        virt-customize -a /tmp/"$IMAGE_NAME" --truncate /etc/machine-id --truncate /var/lib/dbus/machine-id
         ;;
     5)  # RHEL
-        virt-customize --install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -a "$IMAGE_NAME"
-        virt-customize --install qemu-guest-agent,htop,curl,cifs-utils -a "$IMAGE_NAME"
-        virt-customize --run-command "systemctl enable qemu-guest-agent" -a "$IMAGE_NAME"
+        virt-customize --install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -a /tmp/"$IMAGE_NAME"
+        virt-customize --install qemu-guest-agent,htop,curl,cifs-utils -a /tmp/"$IMAGE_NAME"
+        virt-customize --run-command "systemctl enable qemu-guest-agent" -a /tmp/"$IMAGE_NAME"
         ;;
     6|7)  # Windows
         ;;
@@ -204,7 +204,7 @@ case $keuze in
         qm set $VMID --scsihw virtio-scsi-single 
         ;;
     2|3|4|5)  # Debian en Ubuntu en RHEL
-        qm importdisk $VMID "$IMAGE_NAME" $STORAGE
+        qm importdisk $VMID /tmp/"$IMAGE_NAME" $STORAGE
         qm set $VMID --scsihw virtio-scsi-single --scsi0 $STORAGE:$VMID/vm-$VMID-disk-0.raw,discard=on,iothread=1,ssd=1,format=raw
         ;;
 esac
