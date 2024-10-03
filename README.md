@@ -5,6 +5,9 @@ LET-OP: Windows is nog TODO!
 
 createvm.sh:
 Maakt templates op basis van inputs die tijdens het uitvoeren ingegegevn worden.
+
+```chmod +x createvm.sh```
+
 * je geeft de gewenste vmid op (als deze al bestaat vraagt hij of je hem wilt overschrijven).
 * Dan krijg je een OS keuze list.
 * Dan geef je de template een naam.
