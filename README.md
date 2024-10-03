@@ -1,5 +1,8 @@
 ProxMox Scripts
 
+LET-OP: Dit script is allen getest op file based storage!
+LET-OP: Windows is nog TODO!
+
 createvm.sh:
 Maakt templates op basis van inputs die tijdens het uitvoeren ingegegevn worden.
 * je geeft de gewenste vmid op (als deze al bestaat vraagt hij of je hem wilt overschrijven).
