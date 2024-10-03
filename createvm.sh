@@ -3,34 +3,82 @@
 # Log naar een bestand, inclusief foutmeldingen
 exec > >(tee -a ./createvm.log) 2>&1
 
-# Zorg dat het script met vier parameters wordt aangeroepen: VMID, STORAGE, VMNAME en SSH_KEYS_PATH
-if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 <VMID> <STORAGE> <VMNAME> <SSH_KEYS_PATH>"
-    exit 1
-fi
+# Log de start van het script
+echo "Script gestart op: $(date)"
 
+while true; do
+    read -p "Voer de VMID in (getal): " VMID
+    if [[ "$VMID" =~ ^[0-9]+$ ]]; then
+        # Controleer of de VM al bestaat direct na invoer
+        if qm list | awk '{print $1}' | grep -q "^$VMID$"; then
+            echo "Een VM of template met ID $VMID bestaat al."
+            read -p "Wil je deze overschrijven? (j/n): " antwoord
+            if [[ ! "$antwoord" =~ ^[jJ]$ ]]; then
+                echo "Afgebroken door de gebruiker."
+                exit 0
+            fi
+
+            # Indien bevestigd, verwijder de bestaande VM
+            echo "Verwijderen van de bestaande VM met ID $VMID..."
+            qm stop $VMID --skiplock  # Stop de VM als deze draait
+            qm destroy $VMID --destroy-unreferenced-disks 1 --purge 1  # Verwijder de VM inclusief de schijven
+            echo "De bestaande VM met ID $VMID is verwijderd."
+            # Op dit punt willen we niet opnieuw om een VMID vragen, maar doorgaan met de rest van het script
+            break
+        else
+            echo "Geen bestaande VM met ID $VMID gevonden."
+            break  # Verlaat de loop als er geen bestaande VM is gevonden
+        fi
+    else
+        echo "Ongeldige invoer. Voer een geldig getal in voor de VMID."
+    fi
+done
+
+# Vraag de gebruiker om de VMID en valideer deze
+#while true; do
+#    read -p "Voer de VMID in (getal): " VMID
+#    if [[ "$VMID" =~ ^[0-9]+$ ]]; then
+#        break
+#    else
+#        echo "Ongeldige invoer. Voer een geldig getal in voor de VMID."
+#    fi
+#done
+
+# Vraag de gebruiker om de opslag
+read -p "Voer de opslag in (bijv. data-btrfs): " STORAGE
+
+# Vraag de gebruiker om de naam van de VM
+read -p "Voer de naam van de VM in: " VMNAME
+
+# Vraag de gebruiker om het pad naar de SSH-sleutels en controleer of het bestand bestaat
+while true; do
+    read -p "Voer het pad naar de SSH-sleutels in: " SSH_KEYS_PATH
+    if [ -f "$SSH_KEYS_PATH" ]; then
+        echo "SSH-sleutels gevonden op: $SSH_KEYS_PATH"
+        break  # Verlaat de loop als het bestand bestaat
+    else
+        echo "Error: SSH keys file not found at $SSH_KEYS_PATH. Probeer het opnieuw."
+    fi
+done
+
+# Weergeven van de ingevoerde variabelen
+echo "Gekozen instellingen:"
 echo "VMID: $VMID"
 echo "STORAGE: $STORAGE"
 echo "VMNAME: $VMNAME"
 echo "SSH_KEYS_PATH: $SSH_KEYS_PATH"
 
-# Variabelen op basis van ingevoerde parameters
-VMID=$1
-STORAGE=$2
-VMNAME=$3
-SSH_KEYS_PATH=$4
-
-# Controleer of het SSH-key bestand bestaat
-if [ ! -f "$SSH_KEYS_PATH" ]; then
-    echo "Error: SSH keys file not found at $SSH_KEYS_PATH"
-    exit 1
+# Bevestigingsprompt
+read -p "Klopt alles? (j/n): " bevestiging
+if [[ ! "$bevestiging" =~ ^[jJ]$ ]]; then
+    echo "Afgebroken door de gebruiker."
+    exit 0
 fi
+
+echo "Voortzetten met de volgende instellingen..."
 
 # Vereiste packages installeren
 sudo apt install libguestfs-tools -y
-
-# Vernietig eventuele bestaande VM met dezelfde ID
-qm destroy $VMID --destroy-unreferenced-disks 1 --purge 1
 
 # Download de Debian cloud image
 wget https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
