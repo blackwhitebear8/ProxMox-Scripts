@@ -34,18 +34,94 @@ while true; do
     fi
 done
 
-# Vraag de gebruiker om de VMID en valideer deze
-#while true; do
-#    read -p "Voer de VMID in (getal): " VMID
-#    if [[ "$VMID" =~ ^[0-9]+$ ]]; then
-#        break
-#    else
-#        echo "Ongeldige invoer. Voer een geldig getal in voor de VMID."
-#    fi
-#done
+# Keuze voor het downloaden van het besturingssysteem
+while true; do
+    echo "Kies het besturingssysteem dat je wilt downloaden:"
+    echo "1) OS-LOOS"
+    echo "2) Debian 12"
+    echo "3) Ubuntu 22.04"
+    echo "4) Ubuntu 24.04"
+    echo "5) Almalinux 9"
+    echo "6) Windows server 2025 EVAL GUI TODO"
+    echo "7) Windows server 2025 EVAL TODO"
+    read -p "Voer je keuze in (1 -7 ): " keuze
 
-# Vraag de gebruiker om de opslag
-read -p "Voer de opslag in (bijv. data-btrfs): " STORAGE
+    case $keuze in
+        1)
+            IMAGE_URL=""
+            IMAGE_NAME=""
+            echo "OS-LOOS geselecteerd."
+            break
+            ;;
+        2)
+            IMAGE_URL="https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2"
+            IMAGE_NAME="debian-12-generic-amd64.qcow2"
+            echo "Debian 12 geselecteerd."
+            break
+            ;;
+        3)
+            IMAGE_URL="https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+            IMAGE_NAME="jammy-server-cloudimg-amd64.img"
+            echo "Ubuntu 22.04 geselecteerd."
+            break
+            ;;
+        4)
+            IMAGE_URL="https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+            IMAGE_NAME="noble-server-cloudimg-amd64.img"
+            echo "Ubuntu 24.04 geselecteerd."
+            break
+            ;;
+        5)
+            IMAGE_URL="https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+            IMAGE_NAME="AlmaLinux-9-GenericCloud-latest.x86_64.qcow2"
+            echo "Almalinux 9 geselecteerd."
+            break
+            ;;
+        6)
+            IMAGE_URL=""
+            IMAGE_NAME=""
+            echo "Windows server 2025 EVAL GUI geselecteerd."
+            break
+            ;;
+        7)
+            IMAGE_URL=""
+            IMAGE_NAME=""
+            echo "Windows server 2025 EVAL geselecteerd."
+            break
+            ;;
+        *)
+            echo "Ongeldige keuze. Voer 1 - 7 in."
+            ;;
+    esac
+done
+
+# Functie om beschikbare opslaglocaties op te halen en te laten kiezen
+function kies_storage() {
+    echo "Beschikbare storage op de Proxmox server:"
+
+    # Haal de beschikbare opslaglocaties op
+    STORAGE_LIST=$(pvesm status | awk 'NR>1 {print $1}')  # Skip de eerste regel (header)
+
+    # Controleer of er opslaglocaties beschikbaar zijn
+    if [ -z "$STORAGE_LIST" ]; then
+        echo "Geen opslaglocaties gevonden op de server."
+        exit 1
+    fi
+
+    # Toon de beschikbare opslaglocaties en laat de gebruiker kiezen
+    PS3="Kies de gewenste storage locatie: "
+    select STORAGE in $STORAGE_LIST; do
+        if [[ -n "$STORAGE" ]]; then
+            echo "Je hebt gekozen voor opslaglocatie: $STORAGE"
+            break
+        else
+            echo "Ongeldige keuze, probeer het opnieuw."
+        fi
+    done
+}
+
+# Roep de functie aan om de opslag te kiezen
+kies_storage
 
 # Vraag de gebruiker om de naam van de VM
 read -p "Voer de naam van de VM in: " VMNAME
@@ -67,6 +143,8 @@ echo "VMID: $VMID"
 echo "STORAGE: $STORAGE"
 echo "VMNAME: $VMNAME"
 echo "SSH_KEYS_PATH: $SSH_KEYS_PATH"
+echo "Geselecteerd image: $IMAGE_URL"
+echo "Op te slaan image naam: $IMAGE_NAME"
 
 # Bevestigingsprompt
 read -p "Klopt alles? (j/n): " bevestiging
@@ -81,20 +159,41 @@ echo "Voortzetten met de volgende instellingen..."
 sudo apt install libguestfs-tools -y
 
 # Download de Debian cloud image
-wget https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
+wget -O "$IMAGE_NAME" "$IMAGE_URL"
 
 # Pas de image aan met de vereiste tools en configuraties
-virt-customize --install qemu-guest-agent,htop,curl,avahi-daemon,console-setup,cron,cifs-utils -a debian-12-generic-amd64.qcow2
-virt-customize -a debian-12-generic-amd64.qcow2 --truncate /etc/machine-id --truncate /var/lib/dbus/machine-id
+case $keuze in
+    6|7)  # OS-LOOS
+        ;;
+    2|3|4)  # Debian en Ubuntu
+        virt-customize --install qemu-guest-agent,htop,curl,avahi-daemon,console-setup,cron,cifs-utils -a "$IMAGE_NAME"
+        virt-customize --run-command "systemctl enable qemu-guest-agent" -a "$IMAGE_NAME"
+        virt-customize -a "$IMAGE_NAME" --truncate /etc/machine-id --truncate /var/lib/dbus/machine-id
+        ;;
+    5)  # RHEL
+        virt-customize --install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -a "$IMAGE_NAME"
+        virt-customize --install qemu-guest-agent,htop,curl,cifs-utils -a "$IMAGE_NAME"
+        virt-customize --run-command "systemctl enable qemu-guest-agent" -a "$IMAGE_NAME"
+        ;;
+    6|7)  # Windows
+        ;;
+esac
 
 # Maak een nieuwe VM aan met de opgegeven parameters
 qm create $VMID --name $VMNAME --memory 1024 --cores 1 --net0 virtio,bridge=vmbr0,firewall=1 --agent 1
 
 # Importeer de aangepaste image naar de opgegeven opslaglocatie
-qm importdisk $VMID debian-12-generic-amd64.qcow2 $STORAGE
+case $keuze in
+    0|6|7)  # OS-LOOS / Windows
+        qm set $VMID --scsihw virtio-scsi-single 
+        ;;
+    2|3|4|5)  # Debian en Ubuntu
+        qm importdisk $VMID "$IMAGE_NAME" $STORAGE
+        qm set $VMID --scsihw virtio-scsi-single --scsi0 $STORAGE:$VMID/vm-$VMID-disk-0.raw,discard=on,iothread=1,ssd=1,format=raw
+        ;;
+esac
 
 # Stel de schijven en andere VM-instellingen in
-qm set $VMID --scsihw virtio-scsi-single --scsi0 $STORAGE:$VMID/vm-$VMID-disk-0.raw,discard=on,iothread=1,ssd=1,format=raw
 qm set $VMID --ide0 $STORAGE:cloudinit,format=raw
 qm set $VMID --ide2 none,media=cdrom
 qm set $VMID --bios ovmf
@@ -125,4 +224,4 @@ qm resize $VMID scsi0 10G
 qm template $VMID
 
 # Verwijder de gedownloade image
-rm debian-12-generic-amd64.qcow2
+rm "$IMAGE_NAME"
