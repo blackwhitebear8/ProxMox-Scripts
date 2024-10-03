@@ -95,6 +95,31 @@ while true; do
     esac
 done
 
+# Vraag de gebruiker om de naam van de VM
+read -p "Voer de naam van de VM in: " VMNAME
+
+# Vraag de gebruiker om het pad naar de SSH-sleutels en controleer of het bestand bestaat
+while true; do
+    read -p "Voer het pad naar de SSH-sleutels in: " SSH_KEYS_PATH
+    if [ -f "$SSH_KEYS_PATH" ]; then
+        echo "SSH-sleutels gevonden op: $SSH_KEYS_PATH"
+        break  # Verlaat de loop als het bestand bestaat
+    else
+        echo "Error: SSH keys file not found at $SSH_KEYS_PATH. Probeer het opnieuw."
+    fi
+done
+
+# Vraag de gebruiker om de disk grootte en valideer dat het alleen cijfers zijn
+while true; do
+    read -p "Voer de gewenste disk grootte in GiB: " DISK_SIZE
+    if [[ "$DISK_SIZE" =~ ^[0-9]+$ ]]; then
+        echo "Geldige disk grootte: ${DISK_SIZE} GiB"
+        break  # Verlaat de loop als de invoer correct is
+    else
+        echo "Ongeldige invoer. Voer een geldig getal in voor de disk grootte (bijv. 10)."
+    fi
+done
+
 # Functie om beschikbare opslaglocaties op te halen en te laten kiezen
 function kies_storage() {
     echo "Beschikbare storage op de Proxmox server:"
@@ -123,25 +148,12 @@ function kies_storage() {
 # Roep de functie aan om de opslag te kiezen
 kies_storage
 
-# Vraag de gebruiker om de naam van de VM
-read -p "Voer de naam van de VM in: " VMNAME
-
-# Vraag de gebruiker om het pad naar de SSH-sleutels en controleer of het bestand bestaat
-while true; do
-    read -p "Voer het pad naar de SSH-sleutels in: " SSH_KEYS_PATH
-    if [ -f "$SSH_KEYS_PATH" ]; then
-        echo "SSH-sleutels gevonden op: $SSH_KEYS_PATH"
-        break  # Verlaat de loop als het bestand bestaat
-    else
-        echo "Error: SSH keys file not found at $SSH_KEYS_PATH. Probeer het opnieuw."
-    fi
-done
-
 # Weergeven van de ingevoerde variabelen
 echo "Gekozen instellingen:"
 echo "VMID: $VMID"
 echo "STORAGE: $STORAGE"
 echo "VMNAME: $VMNAME"
+echo "DISK_SIZE: $DISK_SIZE"
 echo "SSH_KEYS_PATH: $SSH_KEYS_PATH"
 echo "Geselecteerd image: $IMAGE_URL"
 echo "Op te slaan image naam: $IMAGE_NAME"
@@ -187,7 +199,7 @@ case $keuze in
     0|6|7)  # OS-LOOS / Windows
         qm set $VMID --scsihw virtio-scsi-single 
         ;;
-    2|3|4|5)  # Debian en Ubuntu
+    2|3|4|5)  # Debian en Ubuntu en RHEL
         qm importdisk $VMID "$IMAGE_NAME" $STORAGE
         qm set $VMID --scsihw virtio-scsi-single --scsi0 $STORAGE:$VMID/vm-$VMID-disk-0.raw,discard=on,iothread=1,ssd=1,format=raw
         ;;
@@ -215,13 +227,26 @@ qm set $VMID --sshkeys $SSH_KEYS_PATH
 qm set $VMID --efidisk0 $STORAGE:0,format=raw,pre-enrolled-keys=1
 
 # Stel de bootvolgorde in
-qm set $VMID --boot order="scsi0;ide2;net0"
+case $keuze in
+    0|6|7)  # OS-LOOS / WIndows
+        qm set $VMID --boot order="ide2;net0"
+        ;;
+    1|2|3|4|5)  # Debian en Ubuntu en RHEL
+        qm set $VMID --boot order="scsi0;ide2;net0"
+        ;;
+esac
 
-# Pas de grootte van de schijf aan naar 10GB
-qm resize $VMID scsi0 10G
+# Pas de grootte van de schijf aan naar wat er opgegeven is
+qm resize $VMID scsi0 "$DISK_SIZE"G
 
 # Zet de VM om in een template
 qm template $VMID
 
 # Verwijder de gedownloade image
-rm "$IMAGE_NAME"
+case $keuze in
+    0|6|7)  # OS-LOOS / WIndows
+        ;;
+    1|2|3|4|5)  # Debian en Ubuntu en RHEL
+        rm "$IMAGE_NAME"
+        ;;
+esac
