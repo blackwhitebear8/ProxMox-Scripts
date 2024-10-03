@@ -175,7 +175,7 @@ echo "Voortzetten met de volgende instellingen..."
 sudo apt install libguestfs-tools -y
 
 # Download de Debian cloud image
-wget -O "$IMAGE_NAME" "$IMAGE_URL"
+wget -O /tmp/"$IMAGE_NAME" "$IMAGE_URL"
 
 # Pas de image aan met de vereiste tools en configuraties
 case $keuze in
@@ -251,6 +251,6 @@ case $keuze in
     0|6|7)  # OS-LOOS / WIndows
         ;;
     1|2|3|4|5)  # Debian en Ubuntu en RHEL
-        rm "$IMAGE_NAME"
+        rm /tmp/"$IMAGE_NAME"
         ;;
 esac
