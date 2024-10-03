@@ -98,6 +98,9 @@ done
 # Vraag de gebruiker om de naam van de VM
 read -p "Voer de naam van de VM in: " VMNAME
 
+# Vraag de gebruiker om de gebruikersnaam
+read -p "Voer de gewenste gebruikersnaam in: " VMUSER
+
 # Vraag de gebruiker om het pad naar de SSH-sleutels en controleer of het bestand bestaat
 while true; do
     read -p "Voer het pad naar de SSH-sleutels in: " SSH_KEYS_PATH
@@ -153,6 +156,7 @@ echo "Gekozen instellingen:"
 echo "VMID: $VMID"
 echo "STORAGE: $STORAGE"
 echo "VMNAME: $VMNAME"
+echo "VMUSER: $VMUSER"
 echo "DISK_SIZE: $DISK_SIZE"
 echo "SSH_KEYS_PATH: $SSH_KEYS_PATH"
 echo "Geselecteerd image: $IMAGE_URL"
@@ -218,7 +222,7 @@ qm set $VMID --ipconfig0 ip=dhcp,ip6=auto
 qm set $VMID --cpu cputype=host,flags="+md-clear;+spec-ctrl;+aes"
 
 # Stel Cloud-Init instellingen in
-qm set $VMID --ciuser gebruiker
+qm set $VMID --ciuser $VMUSER
 qm set $VMID --ciupgrade 1
 
 # Overige instellingen zoals automatische start en SSH-sleutels
