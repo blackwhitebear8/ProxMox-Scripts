@@ -284,7 +284,9 @@ case $OSKEUZE in
         ;;
     6)  # RHEL
         virt-customize --install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -a /tmp/"$IMAGE_NAME"
-        virt-customize --install qemu-guest-agent,htop,curl,cifs-utils -a /tmp/"$IMAGE_NAME"
+        virt-customize --install qemu-guest-agent,htop,curl,cifs-utils,firewalld -a /tmp/"$IMAGE_NAME"
+        virt-customize --selinux-relabel -a /tmp/"$IMAGE_NAME"
+        virt-customize --run-command "systemctl enable firewalld" -a /tmp/"$IMAGE_NAME"
         virt-customize --run-command "systemctl enable qemu-guest-agent" -a /tmp/"$IMAGE_NAME"
 
         case $SSH_KEYS_PATH in
