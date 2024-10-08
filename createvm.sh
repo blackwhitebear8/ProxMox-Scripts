@@ -255,6 +255,9 @@ sudo apt install libguestfs-tools -y
 # Download de Debian cloud image
 wget -O /tmp/"$IMAGE_NAME" "$IMAGE_URL"
 
+# Haal de DISKTYPE op
+DISKTYPE=$(pvesm status | awk -v storage="$STORAGE" 'NR>1 && $1 == storage {print $2}')
+
 # Pas de image aan met de vereiste tools en configuraties
 case $OSKEUZE in
     1)  # OS-LOOS
@@ -276,14 +279,15 @@ esac
 # Maak een nieuwe VM aan met de opgegeven parameters
 qm create $VMID --name $VMNAME --memory 1024 --cores 1 --net0 virtio,bridge=vmbr0,firewall=1 --agent 1
 
-# Importeer de aangepaste image naar de opgegeven opslaglocatie
-case $OSKEUZE in
-    0|7|8)  # OS-LOOS / Windows
-        qm set $VMID --scsihw virtio-scsi-single 
-        ;;
-    2|3|4|5|6)  # Debian en Ubuntu en RHEL
+# Importeer de aangepaste image op basis van storage type
+case $DISKTYPE in
+    dir|btrfs)  # OS-LOOS / Windows
         qm importdisk $VMID /tmp/"$IMAGE_NAME" $STORAGE
         qm set $VMID --scsihw virtio-scsi-single --scsi0 $STORAGE:$VMID/vm-$VMID-disk-0.raw,discard=on,iothread=1,ssd=1,format=raw
+        ;;
+    lvm|lvmthin)  # Debian en Ubuntu en RHEL
+        qm importdisk $VMID /tmp/"$IMAGE_NAME" $STORAGE
+        qm set $VMID --scsihw virtio-scsi-single --scsi0 $STORAGE:vm-$VMID-disk-0,discard=on,iothread=1,ssd=1,format=raw
         ;;
 esac
 
