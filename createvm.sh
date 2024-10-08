@@ -138,8 +138,11 @@ while true; do
     case $SSHKEUZE in
         1)
             # Vraag de gebruiker om het pad naar de SSH-sleutels en controleer of het bestand bestaat
-            read -p "Voer het pad naar de SSH-sleutels in (optioneel, druk op Enter om over te slaan): " SSH_KEYS_PATH
-            if [ -n "$SSH_KEYS_PATH" ] && [ -f "$SSH_KEYS_PATH" ]; then
+            read -p "Voer het pad naar de SSH-sleutels in (optioneel, druk op Enter om over te slaan): " SSH_KEYS_PATH1
+            if [ -n "$SSH_KEYS_PATH1" ] && [ -f "$SSH_KEYS_PATH1" ]; then
+                cp "$SSH_KEYS_PATH1" /tmp/temporary_ssh_key.pub
+                # Sla de naam van het tijdelijke bestand op in een variabele
+                SSH_KEYS_PATH="/tmp/temporary_ssh_key.pub"
                 echo "SSH-sleutels gevonden op: $SSH_KEYS_PATH"
             else
                 SSH_KEYS_PATH=""
@@ -265,12 +268,36 @@ case $OSKEUZE in
     2|3|4|5)  # Debian en Ubuntu
         virt-customize --install qemu-guest-agent,htop,curl,avahi-daemon,console-setup,cron,cifs-utils -a /tmp/"$IMAGE_NAME"
         virt-customize --run-command "systemctl enable qemu-guest-agent" -a /tmp/"$IMAGE_NAME"
+
+        case $SSH_KEYS_PATH in
+            '')  # leeg
+                virt-customize -a /tmp/"$IMAGE_NAME" \
+                               --run-command 'sed -i "s/^#PasswordAuthentication yes/PasswordAuthentication yes/" /etc/ssh/sshd_config' \
+                               --run-command 'sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/" /etc/ssh/sshd_config' \
+                               --run-command 'systemctl restart sshd'
+                ;;
+            /tmp/temporary_ssh_key.pub)  # iets
+                ;;
+        esac
+
         virt-customize -a /tmp/"$IMAGE_NAME" --truncate /etc/machine-id --truncate /var/lib/dbus/machine-id
         ;;
     6)  # RHEL
         virt-customize --install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm -a /tmp/"$IMAGE_NAME"
         virt-customize --install qemu-guest-agent,htop,curl,cifs-utils -a /tmp/"$IMAGE_NAME"
         virt-customize --run-command "systemctl enable qemu-guest-agent" -a /tmp/"$IMAGE_NAME"
+
+        case $SSH_KEYS_PATH in
+            '')  # leeg
+                virt-customize -a /tmp/"$IMAGE_NAME" \
+                               --run-command 'sed -i "s/^#PasswordAuthentication yes/PasswordAuthentication yes/" /etc/ssh/sshd_config' \
+                               --run-command 'sed -i "s/^PasswordAuthentication no/PasswordAuthentication yes/" /etc/ssh/sshd_config' \
+                               --run-command 'systemctl restart sshd'
+                ;;
+            /tmp/temporary_ssh_key.pub)  # iets
+                ;;
+        esac
+
         ;;
     7|8)  # Windows
         ;;
@@ -310,7 +337,15 @@ qm set $VMID --ciupgrade 1
 
 # Overige instellingen zoals automatische start en SSH-sleutels
 qm set $VMID --onboot 1
-qm set $VMID --sshkeys $SSH_KEYS_PATH
+
+case $SSH_KEYS_PATH in
+    '')  # leeg
+        ;;
+    /tmp/temporary_ssh_key.pub)  # iets
+        qm set $VMID --sshkeys /tmp/temporary_ssh_key.pub
+        ;;
+esac
+
 qm set $VMID --efidisk0 $STORAGE:0,format=raw,pre-enrolled-keys=1
 
 # Stel de bootvolgorde in
