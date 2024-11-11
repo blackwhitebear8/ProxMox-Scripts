@@ -28,3 +28,5 @@ Disk test script met FIO en IOPING
 * -s \ --sleep = hoelang je wilt wachten tussen de tests
 
 Je kan -r en -s weg laten om hem 1x te draaien.
+Het script starten zonder argumenten is ook mogelijk. Dan zal hij met de standaard waarden de teste uitvoeren.
+Deze standaardwaarden zijn: 5 runs van elk 60 seconden lang testen met een wachttijd van 60 seconden tussen elke run.
