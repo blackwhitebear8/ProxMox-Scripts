@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Standaardduur in seconden (bijvoorbeeld 60 seconden)
-DURATION=60
+DEFAULT_DURATION=60
 DURATION=$DEFAULT_DURATION
 
 # Aantal runs
