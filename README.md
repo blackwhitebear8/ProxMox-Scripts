@@ -16,3 +16,15 @@ Maakt templates op basis van inputs die tijdens het uitvoeren ingegegevn worden.
 * dan geef je de gewenste template disk grote op.
 * Dan list hij de beschikbare storage waar je uit moet kiezen.
 * Hierna vraagt hij of alle gegevens kloppen voor hij begint.
+
+Disk test script met FIO en IOPING
+
+```chmod +x disk-test.sh```
+```./disk-test.sh -d -t 2 -r 2 -s 2```
+
+* -d \ --delete = verwijder het resultaten csv bestand.
+* -t \ --duration = test duur van het script in seconden
+* -r \ --repeats = hoevaak je wilt testen
+* -s \ --sleep = hoelang je wilt wachten tussen de tests
+
+Je kan -r en -s weg laten om hem 1x te draaien.
