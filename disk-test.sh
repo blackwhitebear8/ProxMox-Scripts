@@ -107,7 +107,7 @@ do
     fio_write_iops=$(printf "%.2f" $fio_write_iops)
 
     # Resultaten exporteren naar CSV
-    echo "$i,$SLEEPTIME seconden,$timestamp,$DURATION seconden,$fio_read_bw_mbps,$fio_write_bw_mbps,$fio_read_iops,$fio_write_iops,$avg_latency us" >> "$CSV_FILE"
+    echo "$i / $REPEATS,$SLEEPTIME seconden,$timestamp,$DURATION seconden,$fio_read_bw_mbps,$fio_write_bw_mbps,$fio_read_iops,$fio_write_iops,$avg_latency us" >> "$CSV_FILE"
 
     # Tel de waarden op voor gemiddelde berekening (zorg ervoor dat de waarden decimaal zijn)
     total_read_bw=$(echo "$total_read_bw + $fio_read_bw_mbps" | bc)
@@ -121,7 +121,7 @@ do
 
     # Resultaten tonen
     echo "==== Instellingen ===="
-    echo "Run: $i"
+    echo "Run: $i / $REPEATS"
     echo "Slaaptijd: $SLEEPTIME seconden"
     echo "Tijd: $DURATION seconden"
     echo "======================"
